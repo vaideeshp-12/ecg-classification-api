@@ -6,5 +6,5 @@ scipy
 joblib
 openpyxl
 requests
-scikit-learn
+scikit-learn==1.5.2
 python-multipart
