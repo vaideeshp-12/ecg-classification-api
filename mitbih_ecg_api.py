@@ -7,6 +7,8 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+import requests
+import os
 import io
 import joblib
 from scipy.signal import find_peaks
@@ -66,8 +68,15 @@ model = None
 @app.on_event("startup")
 async def startup_event():
     global model
+    model_path = "mitbih_rf_model.pkl"
+    model_url = "https://www.dropbox.com/scl/fi/k9t70dx1jdvykfjy7in2o/mitbih_rf_model.pkl?rlkey=8bzg06ca63vx8roavlu08o42j&st=pd9xsc77&dl=1"  # Replace with your link
+    if not os.path.exists(model_path):
+        print("Downloading model...")
+        response = requests.get(model_url)
+        with open(model_path, "wb") as f:
+            f.write(response.content)
     try:
-        model = joblib.load('mitbih_rf_model.pkl')
+        model = joblib.load(model_path)
         print("Trained Random Forest model loaded successfully.")
     except Exception as e:
         print(f"Failed to load model: {e}")
