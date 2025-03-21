@@ -1,10 +1,10 @@
 fastapi
 uvicorn
 pandas
-numpy
-scipy
+numpy==1.26.4  # Replace with your local version
+scipy==1.13.1  # Replace with your local version
 joblib
 openpyxl
 requests
-scikit-learn==1.5.2
 python-multipart
+scikit-learn==1.5.2
