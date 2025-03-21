@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pandas
+numpy
+scipy
+joblib
+openpyxl
+requests

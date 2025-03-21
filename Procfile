@@ -1,0 +1,1 @@
+web: uvicorn mitbih_ecg_api:app --host 0.0.0.0 --port $PORT

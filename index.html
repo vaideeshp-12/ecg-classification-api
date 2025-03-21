@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG Classification</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+        h1 { color: #333; }
+        #upload-form { margin: 20px 0; }
+        #progress { margin: 10px 0; display: none; }
+        #result { margin-top: 20px; padding: 10px; border: 1px solid #ccc; display: none; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>ECG Classification API</h1>
+    <p>Upload an .xlsx file with 'Lead_II' and 'Chest_Lead' columns to classify ECG signals.</p>
+    
+    <form id="upload-form">
+        <input type="file" id="file-input" accept=".xlsx" required>
+        <button type="submit">Classify ECG</button>
+    </form>
+    
+    <div id="progress">Processing: 0%</div>
+    
+    <div id="result">
+        <h2>Prediction Result</h2>
+        <p><strong>Prediction:</strong> <span id="prediction"></span></p>
+        <p><strong>Confidence:</strong> <span id="confidence"></span></p>
+        <p><strong>Heart Rate (BPM):</strong> <span id="heart-rate"></span></p>
+        <p><strong>Number of Segments:</strong> <span id="num-segments"></span></p>
+        <p><strong>Segment Summary:</strong></p>
+        <ul id="segment-summary"></ul>
+    </div>
+    
+    <div id="error" class="error"></div>
+
+    <script>
+        document.getElementById('upload-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('error').textContent = '';
+            document.getElementById('segment-summary').innerHTML = '';
+            document.getElementById('progress').style.display = 'block';
+            document.getElementById('progress').textContent = 'Processing: 0%';
+            
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            if (!file) {
+                document.getElementById('error').textContent = 'Please select a file.';
+                document.getElementById('progress').style.display = 'none';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/classify-ecg/', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `API request failed with status ${response.status}`);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let resultReceived = false;
+                
+                while (!resultReceived) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n').filter(line => line.trim());
+                    for (const line of lines) {
+                        const data = JSON.parse(line);
+                        if (data.progress) {
+                            document.getElementById('progress').textContent = `Processing: ${data.progress.toFixed(1)}%`;
+                        } else if (data.result) {
+                            document.getElementById('prediction').textContent = data.result.prediction;
+                            document.getElementById('confidence').textContent = data.result.confidence.toFixed(4);
+                            document.getElementById('heart-rate').textContent = data.result.heart_rate_bpm;
+                            document.getElementById('num-segments').textContent = data.result.num_segments;
+                            
+                            const segmentList = document.getElementById('segment-summary');
+                            for (const [cat, count] of Object.entries(data.result.segment_summary)) {
+                                const li = document.createElement('li');
+                                li.textContent = `${cat}: ${count}`;
+                                segmentList.appendChild(li);
+                            }
+                            
+                            document.getElementById('progress').style.display = 'none';
+                            document.getElementById('result').style.display = 'block';
+                            resultReceived = true;
+                        }
+                    }
+                }
+            } catch (error) {
+                document.getElementById('error').textContent = `Error: ${error.message}`;
+                document.getElementById('progress').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
