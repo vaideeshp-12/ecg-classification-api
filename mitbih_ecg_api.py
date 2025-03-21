@@ -30,14 +30,23 @@ app.add_middleware(
 categories = ['N (Normal)', 'S (Supraventricular)', 'V (Ventricular)', 'F (Fusion)', 'Q (Unknown)']
 
 def preprocess_signal(data, fs=360, window_size=256):
-    segments = []
-    for channel in range(data.shape[1]):
-        b, a = signal.butter(3, [0.5, 40], btype='bandpass', fs=fs)
-        filtered = signal.filtfilt(b, a, data[:, channel])
-        filtered = (filtered - np.mean(filtered)) / np.std(filtered)
-        channel_segments = [filtered[i:i + window_size] for i in range(0, len(filtered) - window_size + 1, window_size // 2) if len(filtered[i:i + window_size]) == window_size]
-        segments.append(channel_segments)
-    return np.stack(segments, axis=2)
+    try:
+        segments = []
+        for channel in range(data.shape[1]):
+            b, a = signal.butter(3, [0.5, 40], btype='bandpass', fs=fs)
+            filtered = signal.filtfilt(b, a, data[:, channel])
+            filtered = (filtered - np.mean(filtered)) / np.std(filtered)
+            channel_segments = []
+            for i in range(0, len(filtered) - window_size + 1, window_size // 2):
+                segment = filtered[i:i + window_size]
+                if len(segment) == window_size:
+                    channel_segments.append(segment)
+            segments.append(channel_segments)
+        if not segments:
+            raise ValueError("No segments extracted from signal data")
+        return np.stack(segments, axis=2)
+    except Exception as e:
+        raise ValueError(f"Error in preprocess_signal: {str(e)}")
 
 def extract_features(segments):
     features = []
@@ -97,7 +106,7 @@ async def classify_with_progress(signal_data):
     total_segments = len(segments)
     features = []
     predictions = []
-    batch_size = 100
+    batch_size = 20
     
     async def stream_generator():
         for i in range(0, total_segments, batch_size):
